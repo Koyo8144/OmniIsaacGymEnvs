@@ -44,6 +44,10 @@ from pxr import UsdLux, UsdPhysics
 
 class AnymalTerrainTask(RLTask):
     def __init__(self, name, sim_config, env, offset=None) -> None:
+        print("construct AnymalTerrainTask(RLTask)\n")
+        print("name ", name, "\n")
+        print("sim_config ", sim_config, "\n")
+        print("env ", env, "\n")
 
         self.height_samples = None
         self.custom_origins = False
@@ -83,9 +87,16 @@ class AnymalTerrainTask(RLTask):
         return
 
     def update_config(self, sim_config):
+        print("update_config\n")
+        #print("sim_config ", sim_config, "\n")
+        
         self._sim_config = sim_config
         self._cfg = sim_config.config
         self._task_cfg = sim_config.task_config
+
+        print("self._sim_config ", self._sim_config, "\n")
+        print("self._cfg ", self._cfg, "\n")
+        print("self._task_cfg ", self._task_cfg, "\n")
 
         # normalization
         self.lin_vel_scale = self._task_cfg["env"]["learn"]["linearVelocityScale"]
@@ -94,6 +105,13 @@ class AnymalTerrainTask(RLTask):
         self.dof_vel_scale = self._task_cfg["env"]["learn"]["dofVelocityScale"]
         self.height_meas_scale = self._task_cfg["env"]["learn"]["heightMeasurementScale"]
         self.action_scale = self._task_cfg["env"]["control"]["actionScale"]
+
+        print("self.lin_vel_scale ", self.lin_vel_scale,"\n")
+        print("self.ang_vel_scale ", self.ang_vel_scale,"\n")
+        print("self.dof_pos_scale ", self.dof_pos_scale,"\n")
+        print("self.dof_vel_scale ", self.dof_vel_scale,"\n")
+        print("self.height_meas_scale ", self.height_meas_scale,"\n")
+        print("self.action_scale ", self.action_scale,"\n")
 
         # reward scales
         self.rew_scales = {}
@@ -110,10 +128,16 @@ class AnymalTerrainTask(RLTask):
         self.rew_scales["hip"] = self._task_cfg["env"]["learn"]["hipRewardScale"]
         self.rew_scales["fallen_over"] = self._task_cfg["env"]["learn"]["fallenOverRewardScale"]
 
+        print("self.rew_scales ", self.rew_scales, "\n")
+
         # command ranges
         self.command_x_range = self._task_cfg["env"]["randomCommandVelocityRanges"]["linear_x"]
         self.command_y_range = self._task_cfg["env"]["randomCommandVelocityRanges"]["linear_y"]
         self.command_yaw_range = self._task_cfg["env"]["randomCommandVelocityRanges"]["yaw"]
+
+        print("self.command_x_range ", self.command_x_range,"\n")
+        print("self.command_y_range ", self.command_y_range,"\n")
+        print("self.command_yaw_range ", self.command_yaw_range,"\n")
 
         # base init state
         pos = self._task_cfg["env"]["baseInitState"]["pos"]
@@ -122,8 +146,16 @@ class AnymalTerrainTask(RLTask):
         v_ang = self._task_cfg["env"]["baseInitState"]["vAngular"]
         self.base_init_state = pos + rot + v_lin + v_ang
 
+        print("pos ", pos,"\n")
+        print("rot ", rot,"\n")
+        print("v_lin ", v_lin,"\n")
+        print("v_ang ", v_ang,"\n")
+        print("self.base_init_state ", self.base_init_state,"\n")
+
         # default joint positions
         self.named_default_joint_angles = self._task_cfg["env"]["defaultJointAngles"]
+
+        print("self.named_default_joint_angles ", self.named_default_joint_angles,"\n")
 
         # other
         self.decimation = self._task_cfg["env"]["control"]["decimation"]
@@ -137,10 +169,22 @@ class AnymalTerrainTask(RLTask):
         self.base_threshold = 0.2
         self.knee_threshold = 0.1
 
+        print("self.decimation ", self.decimation,"\n")
+        print("self.dt ", self.dt,"\n")
+        print("self.max_episode_length_s ", self.max_episode_length_s,"\n")
+        print("self.max_episode_length ", self.max_episode_length,"\n")
+        print("self.push_interval ", self.push_interval,"\n")
+        print("self.Kp ", self.Kp,"\n")
+        print("self.Kd ", self.Kd,"\n")
+        print("self.curriculum ", self.curriculum,"\n")
+        print("self.base_threshold ", self.base_threshold,"\n")
+        print("self.knee_threshold ", self.knee_threshold,"\n")
+
         for key in self.rew_scales.keys():
             self.rew_scales[key] *= self.dt
 
         self._num_envs = self._task_cfg["env"]["numEnvs"]
+        print("self._num_envs ", self._num_envs,"\n")
 
         self._task_cfg["sim"]["default_physics_material"]["static_friction"] = self._task_cfg["env"]["terrain"][
             "staticFriction"
@@ -155,6 +199,7 @@ class AnymalTerrainTask(RLTask):
         self._task_cfg["sim"]["add_ground_plane"] = False
 
     def _get_noise_scale_vec(self, cfg):
+        print("_get_noise_scale_vec\n")
         noise_vec = torch.zeros_like(self.obs_buf[0])
         self.add_noise = self._task_cfg["env"]["learn"]["addNoise"]
         noise_level = self._task_cfg["env"]["learn"]["noiseLevel"]
@@ -171,6 +216,7 @@ class AnymalTerrainTask(RLTask):
         return noise_vec
 
     def init_height_points(self):
+        print("init_height_points\n")
         # 1mx1.6m rectangle (without center line)
         y = 0.1 * torch.tensor(
             [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5], device=self.device, requires_grad=False
@@ -187,6 +233,7 @@ class AnymalTerrainTask(RLTask):
         return points
 
     def _create_trimesh(self, create_mesh=True):
+        print("_create_trimesh\n")
         self.terrain = Terrain(self._task_cfg["env"]["terrain"], num_robots=self.num_envs)
         vertices = self.terrain.vertices
         triangles = self.terrain.triangles
@@ -198,6 +245,7 @@ class AnymalTerrainTask(RLTask):
         )
 
     def set_up_scene(self, scene) -> None:
+        print("set_up_scene\n")
         self._stage = get_current_stage()
         self.get_terrain()
         self.get_anymal()
@@ -210,6 +258,7 @@ class AnymalTerrainTask(RLTask):
         scene.add(self._anymals._base)
 
     def initialize_views(self, scene):
+        print("initialize_views\n")
         # initialize terrain variables even if we do not need to re-create the terrain mesh
         self.get_terrain(create_mesh=False)
 
@@ -228,6 +277,7 @@ class AnymalTerrainTask(RLTask):
         scene.add(self._anymals._base)
 
     def get_terrain(self, create_mesh=True):
+        print("get_terrain\n")
         self.env_origins = torch.zeros((self.num_envs, 3), device=self.device, requires_grad=False)
         if not self.curriculum:
             self._task_cfg["env"]["terrain"]["maxInitMapLevel"] = self._task_cfg["env"]["terrain"]["numLevels"] - 1
@@ -241,6 +291,7 @@ class AnymalTerrainTask(RLTask):
         self.terrain_origins = torch.from_numpy(self.terrain.env_origins).to(self.device).to(torch.float)
 
     def get_anymal(self):
+        print("get_anymal\n")
         anymal_translation = torch.tensor([0.0, 0.0, 0.66])
         anymal_orientation = torch.tensor([1.0, 0.0, 0.0, 0.0])
         anymal = Anymal(
@@ -249,6 +300,9 @@ class AnymalTerrainTask(RLTask):
             translation=anymal_translation,
             orientation=anymal_orientation,
         )
+
+        print("anymal ", anymal, "\n")
+        
         self._sim_config.apply_articulation_settings(
             "anymal", get_prim_at_path(anymal.prim_path), self._sim_config.parse_actor_config("anymal")
         )
@@ -262,6 +316,7 @@ class AnymalTerrainTask(RLTask):
             self.default_dof_pos[:, i] = angle
 
     def post_reset(self):
+        print("post_reset\n")
         self.base_init_state = torch.tensor(
             self.base_init_state, dtype=torch.float, device=self.device, requires_grad=False
         )
@@ -316,6 +371,7 @@ class AnymalTerrainTask(RLTask):
         self.init_done = True
 
     def reset_idx(self, env_ids):
+        print("reset_idx\n")
         indices = env_ids.to(dtype=torch.int32)
 
         positions_offset = torch_rand_float(0.5, 1.5, (len(env_ids), self.num_dof), device=self.device)
@@ -367,6 +423,10 @@ class AnymalTerrainTask(RLTask):
         self.extras["episode"]["terrain_level"] = torch.mean(self.terrain_levels.float())
 
     def update_terrain_level(self, env_ids):
+        print("update_terrain_level\n")
+        print("self.terrain_levels[env_ids] ", self.terrain_levels[env_ids], "\n")
+        print("self.env_origins[env_ids] ", self.env_origins[env_ids], "\n")
+        
         if not self.init_done or not self.curriculum:
             # do not change on initial reset
             return
@@ -379,20 +439,28 @@ class AnymalTerrainTask(RLTask):
         self.terrain_levels[env_ids] = torch.clip(self.terrain_levels[env_ids], 0) % self.terrain.env_rows
         self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
 
+        print("self.terrain_levels[env_ids] ", self.terrain_levels[env_ids], "\n")
+        print("self.env_origins[env_ids] ", self.env_origins[env_ids], "\n")
+
     def refresh_dof_state_tensors(self):
+        print("refresh_dof_state_tensors\n")
         self.dof_pos = self._anymals.get_joint_positions(clone=False)
         self.dof_vel = self._anymals.get_joint_velocities(clone=False)
 
     def refresh_body_state_tensors(self):
+        print("refresh_body_state_tensors\n")
         self.base_pos, self.base_quat = self._anymals.get_world_poses(clone=False)
         self.base_velocities = self._anymals.get_velocities(clone=False)
         self.knee_pos, self.knee_quat = self._anymals._knees.get_world_poses(clone=False)
 
     def pre_physics_step(self, actions):
+        print("pre_physics_step\n")
+        print("actions ", actions, "\n")
         if not self.world.is_playing():
             return
 
         self.actions = actions.clone().to(self.device)
+        print("self.actions ", self.actions, "\n")
         for i in range(self.decimation):
             if self.world.is_playing():
                 torques = torch.clip(
@@ -407,6 +475,7 @@ class AnymalTerrainTask(RLTask):
                 self.refresh_dof_state_tensors()
 
     def post_physics_step(self):
+        print("post_physics_step\n")
         self.progress_buf[:] += 1
 
         if self.world.is_playing():
@@ -444,12 +513,16 @@ class AnymalTerrainTask(RLTask):
         return self.obs_buf, self.rew_buf, self.reset_buf, self.extras
 
     def push_robots(self):
+        print("push_robots\n")
         self.base_velocities[:, 0:2] = torch_rand_float(
             -1.0, 1.0, (self.num_envs, 2), device=self.device
         )  # lin vel x/y
+        print("self.base_velocities[:, 0:2] ", self.base_velocities[:, 0:2], "\n")
         self._anymals.set_velocities(self.base_velocities)
+        print("self.base_velocities[:, 0:2] ", self.base_velocities[:, 0:2], "\n")
 
     def check_termination(self):
+        print("check_termination\n")
         self.timeout_buf = torch.where(
             self.progress_buf >= self.max_episode_length - 1,
             torch.ones_like(self.timeout_buf),
@@ -466,19 +539,24 @@ class AnymalTerrainTask(RLTask):
         self.reset_buf = torch.where(self.timeout_buf.bool(), torch.ones_like(self.reset_buf), self.reset_buf)
 
     def calculate_metrics(self):
+        print("calculate_metrics\n")
+        print("self.commands[:, :2] ", self.commands[:, :2], "\n")
         # velocity tracking reward
         lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
         rew_lin_vel_xy = torch.exp(-lin_vel_error / 0.25) * self.rew_scales["lin_vel_xy"]
         rew_ang_vel_z = torch.exp(-ang_vel_error / 0.25) * self.rew_scales["ang_vel_z"]
 
+        print("self.base_ang_vel[:, :2] ", self.base_ang_vel[:, :2], "\n")
         # other base velocity penalties
         rew_lin_vel_z = torch.square(self.base_lin_vel[:, 2]) * self.rew_scales["lin_vel_z"]
         rew_ang_vel_xy = torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1) * self.rew_scales["ang_vel_xy"]
 
+        print("self.projected_gravity[:, :2] ", self.projected_gravity[:, :2], "\n")
         # orientation penalty
         rew_orient = torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1) * self.rew_scales["orient"]
 
+        print("self.base_pos[:, 2] ", self.base_pos[:, 2], "\n")
         # base height penalty
         rew_base_height = torch.square(self.base_pos[:, 2] - 0.52) * self.rew_scales["base_height"]
 
@@ -515,7 +593,9 @@ class AnymalTerrainTask(RLTask):
             + rew_hip
             + rew_fallen_over
         )
+        print("self.rew_buf ", self.rew_buf, "\n")
         self.rew_buf = torch.clip(self.rew_buf, min=0.0, max=None)
+        print("self.rew_buf ", self.rew_buf, "\n")
 
         # add termination reward
         self.rew_buf += self.rew_scales["termination"] * self.reset_buf * ~self.timeout_buf
@@ -533,10 +613,21 @@ class AnymalTerrainTask(RLTask):
         self.episode_sums["hip"] += rew_hip
 
     def get_observations(self):
+        print("get_observations\n")
         self.measured_heights = self.get_heights()
+        print("self.measured_heights ", self.measured_heights, "\n")
         heights = (
             torch.clip(self.base_pos[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.0) * self.height_meas_scale
         )
+
+        print("self.base_lin_vel ", self.base_lin_vel, "\n")
+        print("self.base_ang_vel ", self.base_ang_vel, "\n")
+        print("self.projected_gravity ", self.projected_gravity, "\n")
+        print("self.commands[:, :3] ", self.commands[:, :3], "\n")
+        print("self.dof_pos ", self.dof_pos, "\n")
+        print("self.dof_vel ", self.dof_vel, "\n")
+        print("heights ", heights, "\n")
+        print("self.actions ", self.actions, "\n")
         self.obs_buf = torch.cat(
             (
                 self.base_lin_vel * self.lin_vel_scale,
@@ -552,6 +643,7 @@ class AnymalTerrainTask(RLTask):
         )
 
     def get_ground_heights_below_knees(self):
+        print("get_ground_heights_below_knees\n")
         points = self.knee_pos.reshape(self.num_envs, 4, 3)
         points += self.terrain.border_size
         points = (points / self.terrain.horizontal_scale).long()
@@ -566,6 +658,7 @@ class AnymalTerrainTask(RLTask):
         return heights.view(self.num_envs, -1) * self.terrain.vertical_scale
 
     def get_ground_heights_below_base(self):
+        print("get_ground_heights_below_base\n")
         points = self.base_pos.reshape(self.num_envs, 1, 3)
         points += self.terrain.border_size
         points = (points / self.terrain.horizontal_scale).long()
@@ -580,6 +673,7 @@ class AnymalTerrainTask(RLTask):
         return heights.view(self.num_envs, -1) * self.terrain.vertical_scale
 
     def get_heights(self, env_ids=None):
+        print("get_heights\n")
         if env_ids:
             points = quat_apply_yaw(
                 self.base_quat[env_ids].repeat(1, self.num_height_points), self.height_points[env_ids]
@@ -606,6 +700,7 @@ class AnymalTerrainTask(RLTask):
 
 @torch.jit.script
 def quat_apply_yaw(quat, vec):
+    print("quat_apply_yaw\n")
     quat_yaw = quat.clone().view(-1, 4)
     quat_yaw[:, 1:3] = 0.0
     quat_yaw = normalize(quat_yaw)
@@ -614,6 +709,7 @@ def quat_apply_yaw(quat, vec):
 
 @torch.jit.script
 def wrap_to_pi(angles):
+    print("wrap_to_pi\n")
     angles %= 2 * np.pi
     angles -= 2 * np.pi * (angles > np.pi)
     return angles
@@ -621,6 +717,7 @@ def wrap_to_pi(angles):
 
 def get_axis_params(value, axis_idx, x_value=0.0, dtype=float, n_dims=3):
     """construct arguments to `Vec` according to axis index."""
+    print("get_axis_params\n")
     zs = np.zeros((n_dims,))
     assert axis_idx < n_dims, "the axis dim should be within the vector dimensions"
     zs[axis_idx] = 1.0
