@@ -47,26 +47,35 @@ from rl_games.torch_runner import Runner
 class RLGTrainer:
     def __init__(self, cfg, cfg_dict):
         self.cfg = cfg
+        print("self.cfg ", self.cfg, "\n")
         self.cfg_dict = cfg_dict
+        print("self.cfg_dict ", self.cfg_dict, "\n")
 
     def launch_rlg_hydra(self, env):
         # `create_rlgpu_env` is environment construction function which is passed to RL Games and called internally.
         # We use the helper function here to specify the environment config.
+        print("launch_rlg_hydra\n")
         self.cfg_dict["task"]["test"] = self.cfg.test
-
+        print("self.cfg.test ", self.cfg.test, "\n")
+        
         # register the rl-games adapter to use inside the runner
         vecenv.register("RLGPU", lambda config_name, num_actors, **kwargs: RLGPUEnv(config_name, num_actors, **kwargs))
         env_configurations.register("rlgpu", {"vecenv_type": "RLGPU", "env_creator": lambda **kwargs: env})
 
         self.rlg_config_dict = omegaconf_to_dict(self.cfg.train)
+        print("self.rlg_config_dict ", self.rlg_config_dict, "\n")
 
     def run(self, module_path, experiment_dir):
+        print("run\n")
         self.rlg_config_dict["params"]["config"]["train_dir"] = os.path.join(module_path, "runs")
 
         # create runner and set the settings
         runner = Runner(RLGPUAlgoObserver())
+        print("runner ", runner, "\n")
         runner.load(self.rlg_config_dict)
+        print("runner ", runner, "\n")
         runner.reset()
+        print("runner", runner, "\n")
 
         # dump config dict
         os.makedirs(experiment_dir, exist_ok=True)
@@ -80,7 +89,9 @@ class RLGTrainer:
 
 @hydra.main(version_base=None, config_name="config", config_path="../cfg")
 def parse_hydra_configs(cfg: DictConfig):
-
+    print("parse_hydra_configs\n")
+    print("cfg ", cfg, "\n")
+    
     time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     headless = cfg.headless
@@ -104,10 +115,13 @@ def parse_hydra_configs(cfg: DictConfig):
         enable_viewport=enable_viewport or cfg.enable_recording,
         experience=experience
     )
+    print("env", env, "\n")
 
     # parse experiment directory
     module_path = os.path.abspath(os.path.join(os.path.dirname(omniisaacgymenvs.__file__)))
+    print("module_path", module_path, "\n")
     experiment_dir = os.path.join(module_path, "runs", cfg.train.params.config.name)
+    print("experiment_dir", experiment_dir, "\n")
 
     # use gym RecordVideo wrapper for viewport recording
     if cfg.enable_recording:
@@ -128,6 +142,7 @@ def parse_hydra_configs(cfg: DictConfig):
         )
 
     # ensure checkpoints can be specified as relative paths
+    print("cfg.checkpoint", cfg.checkpoint, "\n")
     if cfg.checkpoint:
         cfg.checkpoint = retrieve_checkpoint_path(cfg.checkpoint)
         if cfg.checkpoint is None:
@@ -162,6 +177,7 @@ def parse_hydra_configs(cfg: DictConfig):
 
     torch.cuda.set_device(local_rank)
     rlg_trainer = RLGTrainer(cfg, cfg_dict)
+    print("rlg_trainer", rlg_trainer, "\n")
     rlg_trainer.launch_rlg_hydra(env)
     rlg_trainer.run(module_path, experiment_dir)
     env.close()
